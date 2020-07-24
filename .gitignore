@@ -1,0 +1,4 @@
+__pycache__/
+users.pkl
+settings.pkl
+local_settings.py

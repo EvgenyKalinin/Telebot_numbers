@@ -11,6 +11,7 @@ import local_settings
 
 bot = telebot.TeleBot(local_settings.KEY)
 
+# Init User list
 if os.path.exists('users.pkl'):
     with open('users.pkl', 'rb') as f:
         users = pickle.load(f)
@@ -28,9 +29,20 @@ def send_welcome(message):
     print(users[message.from_user.username])
 
 
+def lose(message, attempts, chat_id):
+    if attempts == 0:
+        bot.send_message(chat_id,
+                         "You lose! The range is from 1-10.")
+        users[message.from_user.username] = [random.randint(1, 10), 3, 10]
+        return True
+    return False
+
+
 @bot.message_handler(func=lambda message: True)
 def echo_all(message):
     print(message.from_user.username, ": ", message.text)
+    print(users)
+    # init user data
     chat_id = message.chat.id
     try:
         secret_number = users[message.from_user.username][0]
@@ -41,44 +53,48 @@ def echo_all(message):
         return
 
     if message.text.isdigit():
+        # Bingo
         if int(message.text) == secret_number:
-            users[message.from_user.username][2] *= 2
             level *= 2
+            attempts += 3
             bot.send_message(chat_id, "BINGO! Next level 1-%s" % level)
-            users[message.from_user.username][0] = random.randint(1, level)
-            print(users[message.from_user.username])
-            return
+            secret_number = random.randint(1, level)
+        # Check range
         elif int(message.text) > level:
             bot.send_message(chat_id,
                              "Very big number.(1-%s)" % level)
-            return
         elif int(message.text) < 1:
             bot.send_message(chat_id,
                              "Very small number.(1-%s)" % level)
-            return
+        # Check big/small user number
         elif int(message.text) > int(secret_number):
-            users[message.from_user.username][1] -= 1
             attempts -= 1
-            bot.send_message(chat_id,
-                             "Your number is big. You only have %s attempts left" % attempts)
-            return
+            if not lose(message, attempts, chat_id):
+                bot.send_message(chat_id,
+                                 "Your number is big. You only have %s attempts left" % attempts)
+            else:
+                return
         elif int(message.text) < int(secret_number):
-            users[message.from_user.username][1] -= 1
             attempts -= 1
-            bot.send_message(chat_id,
-                            "Your number is small. You only have %s attempts left" % attempts)
-            return
+            if not lose(message, attempts, chat_id):
+                bot.send_message(chat_id,
+                                 "Your number is small. You only have %s attempts left" % attempts)
+            else:
+                return
     else:
         bot.send_message(chat_id, "Send number")
+    # Save user
+    users[message.from_user.username][0] = secret_number
+    users[message.from_user.username][1] = attempts
+    users[message.from_user.username][2] = level
 
 
-def exit(**args):
-    with open('settings.pkl', 'wb') as f:
+def handler(signal, bb):
+    with open('users.pkl', 'wb') as f:
         pickle.dump(users, f)
     sys.exit(0)
 
 
-signal.signal(signal.SIGINT, exit)
-signal.signal(signal.SIGTERM, exit)
-
+signal.signal(signal.SIGINT, handler)
+signal.signal(signal.SIGTERM, handler)
 bot.polling()
