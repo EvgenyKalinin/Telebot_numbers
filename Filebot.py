@@ -9,8 +9,7 @@ import telebot
 
 import local_settings
 
-bot = telebot.TeleBot(local_settings.KEY)
-
+bot = "5763040812:AAFeA9uoGkNwL9n9E8Lu1i3_CQGTwEBvwzA"
 # Init User list
 if os.path.exists('users.pkl'):
     with open('users.pkl', 'rb') as f:
